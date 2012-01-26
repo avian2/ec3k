@@ -12,8 +12,8 @@
 #define DECODESIZE	4096
 
 struct packet_t {
-	int start;
-	int end;
+	long int start;
+	long int end;
 	int len;
 	unsigned char* data;
 
@@ -31,7 +31,7 @@ struct packet_t {
 };
 
 struct packetizer_state_t {
-	int sample_cnt;
+	long int sample_cnt;
 	unsigned char pv;
 
 	struct packet_t* packet;

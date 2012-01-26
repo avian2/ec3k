@@ -28,7 +28,7 @@ int ascii_print_func(struct packet_t* packet, struct timeval timestamp)
 {
 	int n;
 
-	printf("PACKET: %d (%.2f s) %d (%.2f s) %d (%.2f s)\n", 
+	printf("PACKET: %ld (%.2f s) %ld (%.2f s) %d (%.2f s)\n",
 			packet->start, 
 			((double) packet->start)/FS,
 			packet->end, 
