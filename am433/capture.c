@@ -77,10 +77,10 @@ void restore_dc(unsigned char* buff, ssize_t len) {
 	for(n = 0; n < len; n++) {
 		if(buff[n] >= threshold) {
 			//putchar(255);
-			buff[n] = 1;
+			buff[n] = 0;
 		} else {
 			//putchar(0);
-			buff[n] = 0;
+			buff[n] = 1;
 		}
 		//printf("%d\n", buff[n]);
 	}
@@ -264,12 +264,13 @@ int process_packet(struct packet_t* packet, struct timeval timestamp)
 		
 	int retval = -1;
 
-	if(retval) retval = decode_pwm(packet, 0, 0);
-	if(retval) retval = decode_fsk(packet, 0, 0);
-	if(retval) retval = decode_leader(packet, 0, 0, decode_pwm);
-	if(retval) retval = decode_leader(packet, 0, 0, decode_fsk);
-	if(retval) retval = decode_manchester(packet, 0, 0);
-	if(retval) retval = decode_ppk(packet, 0, 0);
+	if(retval) retval = decode_binary(packet, 0, 0);
+//	if(retval) retval = decode_pwm(packet, 0, 0);
+//	if(retval) retval = decode_fsk(packet, 0, 0);
+//	if(retval) retval = decode_leader(packet, 0, 0, decode_pwm);
+//	if(retval) retval = decode_leader(packet, 0, 0, decode_fsk);
+//	if(retval) retval = decode_manchester(packet, 0, 0);
+//	if(retval) retval = decode_ppk(packet, 0, 0);
 
 	if(!is_noise(packet)) {
 		return use_print_func(packet, timestamp);	

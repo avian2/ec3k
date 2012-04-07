@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -485,6 +486,106 @@ int decode_pwm(struct packet_t* packet, int start, int cp_hint) {
 	}
 
 	packet->modulation = MOD_PWM;
+	packet->cp = cp;
+
+	return 0;
+}
+
+int decode_binary(struct packet_t* packet, int start, int cp_hint)
+{
+	int t;
+
+	packet->bitcount = 0;
+	memset(packet->decoded, 0, DECODESIZE);
+
+	double cp = -1;
+
+	/* find the shortest pulse length in the packet. take that as the
+	 * first estimate of clock pulse length */
+	int pt = start;
+	int pv = start < 0 ? 0 : packet->data[start];
+	for(t = start; t < packet->len; t++) {
+		int v = t < 0 ? 0 : packet->data[t];
+
+		if(pv != v) {
+			int pl = t - pt;
+			if(pl < 2) {
+				debug("binary: pulse too short t=%d", t);
+				return -1;
+			}
+			if(cp == -1 || pl < cp) {
+				cp = pl;
+			}
+
+			pv = v;
+			pt = t;
+		}
+	}
+
+	debug("binary: first guess cp=%.2f", cp);
+
+	/* do a second pass and fine tune the first clock estimate as well as look
+	 * for inconsistencies */
+	pt = start;
+	pv = start < 0 ? 0 : packet->data[start];
+	for(t = start; t < packet->len; t++) {
+		int v = t < 0 ? 0 : packet->data[t];
+
+		if(pv != v) {
+			int pl = t - pt;
+			if(pl < cp) {
+				/* encountered pulse is shorter than current clock guess.
+				 * this can only be due to jitter in the clock */
+				cp = (cp*2.0 + pl) / 3.0;
+			} else if(pl > cp) {
+				/* encountered pulse is longer than current clock guess.
+				 * the pulse should be approximately an integer multiple of
+				 * the clock */
+				double r = pl / cp;
+				double n = round(r);
+				double e = fabs((r - n)/n);
+				if(e > 0.3) {
+					debug("binary: inconsistent pulse length cp=%.2f pl=%d t=%d", cp, pl, t);
+					return -1;
+				}
+				if(n > 20.0) {
+					debug("binary: too many consecutive bits %d t=%d", n, t);
+					return -1;
+				}
+				cp = (cp*2.0 + pl/n) / 3.0;
+			}
+
+			pv = v;
+			pt = t;
+		}
+	}
+
+	debug("binary: cp=%.2f", cp);
+
+	pt = start;
+	pv = start < 0 ? 0 : packet->data[start];
+	for(t = start; t < packet->len; t++) {
+		int v = t < 0 ? 0 : packet->data[t];
+
+		if(pv != v) {
+			int pl = t - pt;
+
+			//debug("binary: pl=%d t=%d", pl, t);
+
+			double r = pl / cp;
+			int nbits = round(r);
+
+			int n;
+			for(n = 0; n < nbits; n++) {
+				push_bit(packet, pv);
+			}
+
+			pv = v;
+			pt = t;
+		}
+	}
+
+	packet->modulation = MOD_BINARY;
 	packet->cp = cp;
 
 	return 0;

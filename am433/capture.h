@@ -10,6 +10,7 @@
 #define MOD_UNKNOWN	2
 #define MOD_MANCHESTER	3
 #define MOD_PPK		4
+#define MOD_BINARY	5
 
 struct am433_capture_hdr {
 	uint64_t timestamp_us;
