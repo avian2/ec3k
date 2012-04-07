@@ -1,63 +1,15 @@
-am433 ISM band receiver
-=======================
+This is work-in-progress for supporting Energycount 3000 transmissions
+in the capture process. It is in various levels of brokenness for any other
+kind of signal.
 
-Toolkit for developing, debugging and reverse engineering devices that use
-ISM band transmissions using OOK modulation. Common devices that can be
-analyzed this way are cheap battery powered weather monitors and other
-wireless sensors, various remote controls and key-less access systems
+If you are not interested in hacking Energycount 3000, please use the
+upstream release!
 
-hardware/
+http://www.tablix.org/~avian/blog/articles/am433/
 
-	This is a simple and cheap design for a USB connected radio
-	receiver that can receive digital, binary amplitude modulated
-	transmissions (also known as OOK - on/off keying, 100% amplitude
-	modulation, ASM).
-	
-	It uses a hybrid super-regen receiver module, which is available
-	off-the-shelf for 433 and 868 MHz ISM bands and an audio codec from
-	an USB dongle.
-	
-am433/
+More info on Energycount 3000:
 
-	This folder contains a software demodulator that is capable of
-	detecting and demodulating a number of baseband encodings.
-
-Available elsewhere:
-
-libpcap/
-
-	Patched libpcap using the capture process from am433/ to capture
-	packets off the air.
-
-tcpdump/
-
-	Patched tcpdump for use with the patched libpcap above that
-	includes some packet printers for common devices that can be seen
-	transmitting on these bands.
-
-
-
-How to compile
-==============
-
-Run bootstrap.sh from the top directory of the distribution. It will
-compile the demodulator and download and build the patched versions of
-libpcap and tcpdump. 
-
-You can then run the tcpdump directly from the build directory (you can
-manually do "make install", but it is not necessary)
-
-$ cd tcpdump
-$ ./tcpdump -D
-
-Will list all available audio interfaces. Choose the one that represents
-the receiver dongle (usually named "C-Media ...")
-
-You can then start the packet capture with, say:
-
-$ ./tcpdump -X -i am433_x_x
-
-
+http://www.tablix.org/~avian/blog/archives/2012/03/reverse_engineering_energycount_3000/
 
 License
 =======
