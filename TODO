@@ -1,0 +1,1 @@
+PCAP files made on x86 seem corrupted on amd64 and vice versa.
