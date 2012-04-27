@@ -29,6 +29,7 @@ int debug(const char *format, ...)
 
 static void push_bit(struct packet_t* packet, int bit) {
 	int last_byte = packet->bitcount / 8;
+	assert(last_byte < DECODESIZE);
 	packet->decoded[last_byte] |= (bit << (7 - packet->bitcount % 8));
 	packet->bitcount++;
 }

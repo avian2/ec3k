@@ -8,8 +8,13 @@
 #define PKT_BREAK_MIN_SAMP	(PKT_BREAK_MIN_MS * FS / 1000)
 #define PKT_BREAK_MAX_SAMP	(PKT_BREAK_MAX_MS * FS / 1000)
 
+/* maximum number of samples for a packet. */
 #define DATASIZE	409600
-#define DECODESIZE	4096
+
+/* maximum number of bytes in a packet.
+ *
+ * In the worst case an undecoded sample is one bit. */
+#define DECODESIZE	(DATASIZE/8)
 
 struct packet_t {
 	long int start;
