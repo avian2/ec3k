@@ -65,6 +65,7 @@ int ascii_print_func(struct packet_t* packet, struct timeval timestamp)
 		*/
 	}
 	printf("\n\n");
+	fflush(stdout);
 
 	return 0;
 }
