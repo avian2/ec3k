@@ -10,15 +10,151 @@ from gnuradio import gr
 from gnuradio.eng_option import eng_option
 from gnuradio.gr import firdes
 from optparse import OptionParser
+import itertools
 import math
 import osmosdr
 import subprocess
+import sys
 import threading
 import time
 
 class EnergyCount3KState:
-	def __init__(self):
-		pass
+	def __init__(self, hex_bytes):
+		bits = self._get_bits(hex_bytes)
+		bits = [ not bit for bit in bits ]
+
+		bits = self._descrambler([18, 17, 13, 12, 1], bits)
+		bits = [ not bit for bit in bits ]
+		
+		bits = self._bit_unstuff(bits)
+
+		bits = self._bit_shuffle(bits)
+		
+		bytes = self._get_bytes(bits)
+
+		self._decode_packet(bytes)
+
+	def _get_bits(self, hex_bytes):
+		"""Unpacks hex printed data into individual bits
+		"""
+		bits = []
+
+		for hex_byte in hex_bytes:
+			i = int(hex_byte, 16)
+			for n in xrange(8):
+				bits.append(bool((i<<n) & 0x80))
+
+		return bits
+
+	def _get_bytes(self, bits):
+		"""Shift bits into bytes, MSB first
+		"""
+		bytes = [0] * (len(bits)/8+1)
+		for n, bit in enumerate(bits):
+			bytes[n/8] |= (int(bit) << (7-n%8))
+
+		return bytes
+
+	def _bit_shuffle(self, bits):
+		"""Weird bit shuffling operation required?
+		"""
+		nbits = []
+
+		# first, invert byte bit order 
+		args = [iter(bits)] * 8
+		for bit_group in itertools.izip_longest(fillvalue=False, *args):
+			nbits += reversed(bit_group)
+
+		# add 4 zero bits at the start
+		nbits = [False]*4 + nbits
+
+		return nbits
+
+	def _descrambler(self, taps, bits):
+		"""Multiplicative, self-synchronizing scrambler
+		"""
+		nbits = []
+
+		state = [ False ] * max(taps)
+
+		for bit in bits:
+
+			out = bit
+			for tap in taps:
+				out = out ^ state[tap-1]
+			nbits.append(out)
+
+			state = [ bit ] + state[:-1]
+
+		return nbits
+
+	def _bit_unstuff(self, bits):
+		"""Bit stuffing reversal.
+		
+		6 consecutive 1s serve as a packet start/stop condition.
+		In the packet, one zero is stuffed after 5 consecutive 1s
+		"""
+		nbits = []
+
+		start = False
+
+		cnt = 0
+		for n, bit in enumerate(bits):
+			if bit:
+				cnt += 1
+				if start:
+					nbits.append(bit)
+			else:
+				if cnt < 5:
+					if start:
+						nbits.append(bit)
+				elif cnt == 5:
+					pass
+				elif cnt == 6:
+					start = not start
+				else:
+					raise InvalidPacket("Wrong bit stuffing: %d concecutive ones" % cnt)
+
+				cnt = 0
+
+		return nbits
+
+	def _unpack_int(self, bytes):
+		i = 0
+		for byte in bytes:
+			i = (i * 0x100) + byte
+
+		return i
+
+	def _decode_packet(self, bytes):
+		if len(bytes) != 43:
+			raise InvalidPacket("Wrong length: %d" % len(bytes))
+
+		self.id			= self._unpack_int(bytes[1:3])
+		self.uptime		= self._unpack_int(bytes[3:5])
+		self.since_reset	= self._unpack_int(bytes[5:9])
+		self.energy_1		= self._unpack_int(bytes[9:16])
+		self.current_power	= self._unpack_int(bytes[16:18])/10.0
+		self.max_power		= self._unpack_int(bytes[18:20])/10.0
+		self.energy_2		= self._unpack_int(bytes[20:23])
+
+	def __str__(self):
+		return	("id              : %04x\n"
+			"uptime          : %d seconds\n"
+			"since last reset: %d seconds\n"
+			"energy          : %d Ws\n"
+			"current power   : %.1f W\n"
+			"max power       : %.1f W\n"
+			"energy          : %d Ws") % (
+					self.id,
+					self.uptime,
+					self.since_reset,
+					self.energy_1,
+					self.current_power,
+					self.max_power,
+					self.energy_2)
+
+class InvalidPacket(Exception): pass
 
 class EnergyCount3K:
 	def __init__(self, id=None, callback=None):
@@ -29,6 +165,8 @@ class EnergyCount3K:
 		"""
 		self.callback = callback
 		self.want_stop = True
+
+		self.state = None
 
 	def start(self):
 		"""Start the receiver
@@ -62,7 +200,7 @@ class EnergyCount3K:
 	def get(self):
 		"""Get the last received state
 		"""
-		pass
+		return self.state
 
 	def _capture_thread(self):
 		p = subprocess.Popen(
@@ -72,7 +210,15 @@ class EnergyCount3K:
 				stdout=subprocess.PIPE)
 
 		while not self.want_stop:
-			print p.stdout.readline()
+			line = p.stdout.readline()
+			fields = line.split()
+			if fields and (fields[0] == 'data'):
+				print "Decoding packet"
+				try:
+					self.state = EnergyCount3KState(fields[1:])
+					print self.state
+				except InvalidPacket, e:
+					print "Invalid packet:", e
 
 	def _power_probe_thread(self):
 		while not self.want_stop:
