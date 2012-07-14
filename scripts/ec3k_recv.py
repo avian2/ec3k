@@ -13,6 +13,7 @@ from optparse import OptionParser
 import itertools
 import math
 import osmosdr
+import signal
 import subprocess
 import sys
 import threading
@@ -198,7 +199,7 @@ class EnergyCount3K:
 
 		self.want_stop = True
 
-		for thread in threads:
+		for thread in self.threads:
 			thread.join()
 
 	def get(self):
@@ -301,6 +302,13 @@ class EnergyCount3K:
 		self.tb.connect((multiply_const, 0), (float_to_uchar, 0))
 		self.tb.connect((float_to_uchar, 0), (pipe_sink, 0))
 
+want_stop = False
+
+def handler(signum, frame):
+	global want_stop
+	print "Signal %d caught! Stopping..." % (signum,)
+	want_stop = True
+
 def callback(state):
 	print state
 
@@ -308,11 +316,14 @@ def main():
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
 
+	signal.signal(signal.SIGTERM, handler)
+	signal.signal(signal.SIGINT, handler)
+
 	ec3k = EnergyCount3K(callback=callback)
 
 	ec3k.start()
 
-	while True:
+	while not want_stop:
 		time.sleep(1)
 		print "Noise level: %.1f dB" % ec3k.noise_level
 
