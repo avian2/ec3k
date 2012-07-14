@@ -177,6 +177,9 @@ class EnergyCount3K:
 		self.want_stop = False
 		self.threads = []
 
+		self.capture_running = threading.Lock()
+		self.capture_running.acquire()
+
 		self.tempdir = tempfile.mkdtemp()
 		self.pipe = os.path.join(self.tempdir, "ec3k.pipe")
 		os.mkfifo(self.pipe)
@@ -185,7 +188,7 @@ class EnergyCount3K:
 		capture_thread.start()
 		self.threads.append(capture_thread)
 
-		time.sleep(3)
+		self.capture_running.acquire()
 
 		self._setup_top_block()
 		self.tb.start()
@@ -217,12 +220,19 @@ class EnergyCount3K:
 
 	def _capture_thread(self):
 		p = subprocess.Popen(
-				["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
-				"-f", self.pipe ],
+				["/usr/bin/env",
+				"capture", "-f", self.pipe ],
 				bufsize=1,
 				stdout=subprocess.PIPE)
 
+		self.capture_running.release()
+
 		while not self.want_stop:
+
+			if p.poll():
+				self._log("Capture process died")
+				break
+
 			line = p.stdout.readline()
 			fields = line.split()
 			if fields and (fields[0] == 'data'):
