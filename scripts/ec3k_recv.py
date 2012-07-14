@@ -38,20 +38,14 @@ class EnergyCount3K:
 		self.want_stop = False
 		self.threads = []
 
-		print "b"
-
 		capture_thread = threading.Thread(target=self._capture_thread)
 		capture_thread.start()
 		self.threads.append(capture_thread)
 
-		print "c"
 		time.sleep(3)
 
-		print "a"
 		self._setup_top_block()
-		print "aaa"
 		self.tb.start()
-		print "h"
 
 	def stop(self):
 		"""Stop the receiver, clean up
@@ -71,7 +65,6 @@ class EnergyCount3K:
 		pass
 
 	def _capture_thread(self):
-		print "Start capture"
 		p = subprocess.Popen(
 				["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
 				"-f", "ec3k.pipe" ],
@@ -116,16 +109,13 @@ class EnergyCount3K:
 		self.power_probe = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
 		self.squelch = gr.simple_squelch_cc(-90, 1)
 
-		print "before th start"
 		power_probe_thread = threading.Thread(target=self._power_probe_thread)
 		power_probe_thread.start()
 		self.threads.append(power_probe_thread)
-		print "After th start"
 
 		self.tb.connect((low_pass_filter, 0), (self.power_probe, 0))
 		self.tb.connect((low_pass_filter, 0), (self.squelch, 0))
 
-		print "After connect"
 		# FM demodulation
 		quadrature_demod = gr.quadrature_demod_cf(1)
 
@@ -143,12 +133,8 @@ class EnergyCount3K:
 
 		float_to_uchar = gr.float_to_uchar()
 
-		print "Before pipe"
-
 		pipe_sink = gr.file_sink(gr.sizeof_char*1, "ec3k.pipe")
 		pipe_sink.set_unbuffered(False)
-
-		print "After pipe"
 
 		self.tb.connect((quadrature_demod, 0), (add_offset, 0))
 		self.tb.connect((add_offset, 0), (binary_slicer, 0))
@@ -161,16 +147,11 @@ if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
 
-	print "ggg"
-
 	ec3k = EnergyCount3K()
-
-	print "hhh"
 
 	ec3k.start()
 
 	while True:
-		print "Time"
 		time.sleep(1)
 
 	ec3k.stop()
