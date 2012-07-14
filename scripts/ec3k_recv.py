@@ -18,6 +18,8 @@ import sys
 import threading
 import time
 
+class InvalidPacket(Exception): pass
+
 class EnergyCount3KState:
 	def __init__(self, hex_bytes):
 		bits = self._get_bits(hex_bytes)
@@ -137,6 +139,9 @@ class EnergyCount3KState:
 		self.current_power	= self._unpack_int(bytes[16:18])/10.0
 		self.max_power		= self._unpack_int(bytes[18:20])/10.0
 		self.energy_2		= self._unpack_int(bytes[20:23])
+		self.timestamp		= time.time()
+
+		# TODO: checksum checking
 
 	def __str__(self):
 		return	("id              : %04x\n"
@@ -154,8 +159,6 @@ class EnergyCount3KState:
 					self.max_power,
 					self.energy_2)
 
-class InvalidPacket(Exception): pass
-
 class EnergyCount3K:
 	def __init__(self, id=None, callback=None):
 		"""Create a new EnergyCount3K object
@@ -163,9 +166,10 @@ class EnergyCount3K:
 		id: ID of the device to monitor
 		callback: optional callable to call on each update
 		"""
+		self.id = id
 		self.callback = callback
-		self.want_stop = True
 
+		self.want_stop = True
 		self.state = None
 
 	def start(self):
@@ -202,6 +206,9 @@ class EnergyCount3K:
 		"""
 		return self.state
 
+	def _log(self, msg):
+		pass
+
 	def _capture_thread(self):
 		p = subprocess.Popen(
 				["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
@@ -213,21 +220,26 @@ class EnergyCount3K:
 			line = p.stdout.readline()
 			fields = line.split()
 			if fields and (fields[0] == 'data'):
-				print "Decoding packet"
+				self._log("Decoding packet")
 				try:
-					self.state = EnergyCount3KState(fields[1:])
-					print self.state
+					state = EnergyCount3KState(fields[1:])
 				except InvalidPacket, e:
-					print "Invalid packet:", e
+					self._log("Invalid packet: %s" % (e,))
+					continue
+
+				if (not self.id) or (state.id == self.id):
+					self.state = state
+					if self.callback:
+						self.callback(self.state)
 
 	def _power_probe_thread(self):
 		while not self.want_stop:
 			power = self.power_probe.level()
 
-			db = 10 * math.log10(max(1e-9, power))
-			print "Current noise level: %.1f dB" % (db,)
+			self.noise_level = 10 * math.log10(max(1e-9, power))
+			self._log("Current noise level: %.1f dB" % (self.noise_level,))
 
-			self.squelch.set_threshold(db+7.0)
+			self.squelch.set_threshold(self.noise_level+7.0)
 			time.sleep(1.0)
 
 	def _setup_top_block(self):
@@ -289,15 +301,22 @@ class EnergyCount3K:
 		self.tb.connect((multiply_const, 0), (float_to_uchar, 0))
 		self.tb.connect((float_to_uchar, 0), (pipe_sink, 0))
 
-if __name__ == '__main__':
+def callback(state):
+	print state
+
+def main():
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
 
-	ec3k = EnergyCount3K()
+	ec3k = EnergyCount3K(callback=callback)
 
 	ec3k.start()
 
 	while True:
 		time.sleep(1)
+		print "Noise level: %.1f dB" % ec3k.noise_level
 
 	ec3k.stop()
+
+if __name__ == '__main__':
+	main()
