@@ -18,14 +18,44 @@ from grc_gnuradio import wxgui as grc_wxgui
 from optparse import OptionParser
 import math
 import osmosdr
+import subprocess
 import threading
 import time
 import wx
 
-class top_block(grc_wxgui.top_block_gui):
+class EnergyCount3KState:
+	def __init__(self):
+		pass
+
+class EnergyCount3K:
+	def __init__(self, id=None, callback=None):
+		"""Create a new EnergyCount3K object
+
+		id: ID of the device to monitor
+		callback: optional callable to call on each update
+		"""
+		self.callback = callback
+
+	def start(self):
+		"""Start the receiver
+		"""
+		pass
+
+	def stop(self):
+		"""Stop the receiver, clean up
+		"""
+		pass
+
+	def get(self):
+		"""Get the last received state
+		"""
+		pass
+
+class top_block(gr.top_block):
 
 	def __init__(self):
-		grc_wxgui.top_block_gui.__init__(self, title="Top Block")
+		#grc_wxgui.top_block_gui.__init__(self, title="Top Block")
+		gr.top_block.__init__(self)
 
 		##################################################
 		# Variables
@@ -41,6 +71,7 @@ class top_block(grc_wxgui.top_block_gui):
 		def _squelch_level_probe():
 			while True:
 				val = self.gr_probe_avg_mag_sqrd_x_0.level()
+				print val
 				try: self.set_squelch_level(val)
 				except AttributeError, e: pass
 				time.sleep(1.0/(1))
@@ -93,14 +124,14 @@ class top_block(grc_wxgui.top_block_gui):
 		self.gr_file_sink_0.set_unbuffered(False)
 		self.gr_char_to_float_0 = gr.char_to_float(1, 1)
 		self.gr_add_const_vxx_0 = gr.add_const_vff((-1e-3, ))
-		self._freq_text_box = forms.text_box(
-			parent=self.GetWin(),
-			value=self.freq,
-			callback=self.set_freq,
-			label="freq",
-			converter=forms.float_converter(),
-		)
-		self.Add(self._freq_text_box)
+		#self._freq_text_box = forms.text_box(
+		#	parent=self.GetWin(),
+		#	value=self.freq,
+		#	callback=self.set_freq,
+		#	label="freq",
+		#	converter=forms.float_converter(),
+		#)
+		#self.Add(self._freq_text_box)
 		self.digital_binary_slicer_fb_0 = digital.binary_slicer_fb()
 
 		##################################################
@@ -132,22 +163,48 @@ class top_block(grc_wxgui.top_block_gui):
 
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
-		self.wxgui_fftsink2_0.set_sample_rate(self.samp_rate)
+		#self.wxgui_fftsink2_0.set_sample_rate(self.samp_rate)
 		self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate*10, 90e3, 8e3, firdes.WIN_HAMMING, 6.76))
 		self.osmosdr_source_c_0.set_sample_rate(self.samp_rate*10)
 		self.gr_probe_avg_mag_sqrd_x_0.set_alpha(1.0/self.samp_rate/1e2)
-		self.wxgui_scopesink2_0.set_sample_rate(self.samp_rate)
+		#self.wxgui_scopesink2_0.set_sample_rate(self.samp_rate)
 
-	def get_freq(self):
-		return self.freq
+	#def get_freq(self):
+	#	return self.freq
 
-	def set_freq(self, freq):
-		self.freq = freq
-		self._freq_text_box.set_value(self.freq)
+	#def set_freq(self, freq):
+	#	self.freq = freq
+	#	self._freq_text_box.set_value(self.freq)
+
+def radio():
+	print "a"
+	tb = top_block()
+	print "s"
+	tb.start()
+	while True:
+		time.sleep(1)
+		print "time"
+	tb.stop()
+
+def capture():
+	p = subprocess.Popen(
+			["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
+			"-f", "ec3k.pipe" ],
+			bufsize=1,
+			stdout=subprocess.PIPE)
+
+	while(True):
+		print p.stdout.readline()
 
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
-	tb = top_block()
-	tb.Run(True)
 
+	capture_thread = threading.Thread(target=capture)
+	capture_thread.start()
+
+	time.sleep(3)
+
+	radio_thread = threading.Thread(target=radio)
+	radio_thread.start()
+	
