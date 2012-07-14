@@ -28,125 +28,149 @@ class EnergyCount3K:
 		callback: optional callable to call on each update
 		"""
 		self.callback = callback
+		self.want_stop = True
 
 	def start(self):
 		"""Start the receiver
 		"""
-		pass
+		assert self.want_stop
+
+		self.want_stop = False
+		self.threads = []
+
+		print "b"
+
+		capture_thread = threading.Thread(target=self._capture_thread)
+		capture_thread.start()
+		self.threads.append(capture_thread)
+
+		print "c"
+		time.sleep(3)
+
+		print "a"
+		self._setup_top_block()
+		print "aaa"
+		self.tb.start()
+		print "h"
 
 	def stop(self):
 		"""Stop the receiver, clean up
 		"""
-		pass
+		assert not self.want_stop
+
+		self.tb.stop()
+
+		self.want_stop = True
+
+		for thread in threads:
+			thread.join()
 
 	def get(self):
 		"""Get the last received state
 		"""
 		pass
 
-class top_block(gr.top_block):
+	def _capture_thread(self):
+		print "Start capture"
+		p = subprocess.Popen(
+				["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
+				"-f", "ec3k.pipe" ],
+				bufsize=1,
+				stdout=subprocess.PIPE)
 
-	def __init__(self):
-		gr.top_block.__init__(self)
+		while not self.want_stop:
+			print p.stdout.readline()
 
-		##################################################
-		# Variables
-		##################################################
-		self.squelch_level = squelch_level = 0
-		self.samp_rate = samp_rate = 96000
-		self.freq = freq = 868.388e6
+	def _power_probe_thread(self):
+		while not self.want_stop:
+			power = self.power_probe.level()
 
-		##################################################
-		# Blocks
-		##################################################
-		self.gr_probe_avg_mag_sqrd_x_0 = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
-		def _squelch_level_probe():
-			while True:
-				val = self.gr_probe_avg_mag_sqrd_x_0.level()
-				print val
-				try: self.set_squelch_level(val)
-				except AttributeError, e: pass
-				time.sleep(1.0/(1))
-		_squelch_level_thread = threading.Thread(target=_squelch_level_probe)
-		_squelch_level_thread.daemon = True
-		_squelch_level_thread.start()
-		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + "rtl=0,buffers=16"  )
-		self.osmosdr_source_c_0.set_sample_rate(samp_rate*10)
-		self.osmosdr_source_c_0.set_center_freq(868.403e6, 0)
-		self.osmosdr_source_c_0.set_freq_corr(0, 0)
-		self.osmosdr_source_c_0.set_gain_mode(1, 0)
-		self.osmosdr_source_c_0.set_gain(0, 0)
-		self.low_pass_filter_0 = gr.fir_filter_ccf(10, firdes.low_pass(
-			1, samp_rate*10, 90e3, 8e3, firdes.WIN_HAMMING, 6.76))
-		self.gr_simple_squelch_cc_0 = gr.simple_squelch_cc(10*math.log10(max(1e-9, squelch_level))+7, 1)
-		self.gr_quadrature_demod_cf_0 = gr.quadrature_demod_cf(1)
-		self.gr_multiply_const_vxx_0 = gr.multiply_const_vff((255, ))
-		self.gr_float_to_uchar_0 = gr.float_to_uchar()
-		self.gr_file_sink_0 = gr.file_sink(gr.sizeof_char*1, "ec3k.pipe")
-		self.gr_file_sink_0.set_unbuffered(False)
-		self.gr_char_to_float_0 = gr.char_to_float(1, 1)
-		self.gr_add_const_vxx_0 = gr.add_const_vff((-1e-3, ))
-		self.digital_binary_slicer_fb_0 = digital.binary_slicer_fb()
+			db = 10 * math.log10(max(1e-9, power))
+			print "Current noise level: %.1f dB" % (db,)
 
-		##################################################
-		# Connections
-		##################################################
-		self.connect((self.gr_simple_squelch_cc_0, 0), (self.gr_quadrature_demod_cf_0, 0))
-		self.connect((self.digital_binary_slicer_fb_0, 0), (self.gr_char_to_float_0, 0))
-		self.connect((self.gr_char_to_float_0, 0), (self.gr_multiply_const_vxx_0, 0))
-		self.connect((self.gr_multiply_const_vxx_0, 0), (self.gr_float_to_uchar_0, 0))
-		self.connect((self.gr_float_to_uchar_0, 0), (self.gr_file_sink_0, 0))
-		self.connect((self.osmosdr_source_c_0, 0), (self.low_pass_filter_0, 0))
-		self.connect((self.low_pass_filter_0, 0), (self.gr_simple_squelch_cc_0, 0))
-		self.connect((self.low_pass_filter_0, 0), (self.gr_probe_avg_mag_sqrd_x_0, 0))
-		self.connect((self.gr_add_const_vxx_0, 0), (self.digital_binary_slicer_fb_0, 0))
-		self.connect((self.gr_quadrature_demod_cf_0, 0), (self.gr_add_const_vxx_0, 0))
+			self.squelch.set_threshold(db+7.0)
+			time.sleep(1.0)
 
-	def get_squelch_level(self):
-		return self.squelch_level
+	def _setup_top_block(self):
 
-	def set_squelch_level(self, squelch_level):
-		self.squelch_level = squelch_level
-		self.gr_simple_squelch_cc_0.set_threshold(10*math.log10(max(1e-9, self.squelch_level))+7)
+		self.tb = gr.top_block()
 
-	def get_samp_rate(self):
-		return self.samp_rate
+		samp_rate = 96000
+		oversample = 10
+		center_freq = 868.402e6
 
-	def set_samp_rate(self, samp_rate):
-		self.samp_rate = samp_rate
-		self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate*10, 90e3, 8e3, firdes.WIN_HAMMING, 6.76))
-		self.osmosdr_source_c_0.set_sample_rate(self.samp_rate*10)
-		self.gr_probe_avg_mag_sqrd_x_0.set_alpha(1.0/self.samp_rate/1e2)
+		# Radio receiver, initial downsampling
+		osmosdr_source = osmosdr.source_c(args="nchan=1 rtl=0,buffers=16")
+		osmosdr_source.set_sample_rate(samp_rate*oversample)
+		osmosdr_source.set_center_freq(center_freq, 0)
+		osmosdr_source.set_freq_corr(0, 0)
+		osmosdr_source.set_gain_mode(1, 0)
+		osmosdr_source.set_gain(0, 0)
 
-def radio():
-	print "a"
-	tb = top_block()
-	print "s"
-	tb.start()
-	while True:
-		time.sleep(1)
-		print "time"
-	tb.stop()
+		low_pass_filter = gr.fir_filter_ccf(oversample, 
+				firdes.low_pass(1, samp_rate*oversample, 90e3, 8e3, firdes.WIN_HAMMING, 6.76))
 
-def capture():
-	p = subprocess.Popen(
-			["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
-			"-f", "ec3k.pipe" ],
-			bufsize=1,
-			stdout=subprocess.PIPE)
+		self.tb.connect((osmosdr_source, 0), (low_pass_filter, 0))
 
-	while(True):
-		print p.stdout.readline()
+		# Squelch
+		self.power_probe = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
+		self.squelch = gr.simple_squelch_cc(-90, 1)
+
+		print "before th start"
+		power_probe_thread = threading.Thread(target=self._power_probe_thread)
+		power_probe_thread.start()
+		self.threads.append(power_probe_thread)
+		print "After th start"
+
+		self.tb.connect((low_pass_filter, 0), (self.power_probe, 0))
+		self.tb.connect((low_pass_filter, 0), (self.squelch, 0))
+
+		print "After connect"
+		# FM demodulation
+		quadrature_demod = gr.quadrature_demod_cf(1)
+
+		self.tb.connect((self.squelch, 0), (quadrature_demod, 0))
+
+		# Binary slicing, transformation into capture-compatible format
+
+		add_offset = gr.add_const_vff((-1e-3, ))
+
+		binary_slicer = digital.binary_slicer_fb()
+
+		char_to_float = gr.char_to_float(1, 1)
+
+		multiply_const = gr.multiply_const_vff((255, ))
+
+		float_to_uchar = gr.float_to_uchar()
+
+		print "Before pipe"
+
+		pipe_sink = gr.file_sink(gr.sizeof_char*1, "ec3k.pipe")
+		pipe_sink.set_unbuffered(False)
+
+		print "After pipe"
+
+		self.tb.connect((quadrature_demod, 0), (add_offset, 0))
+		self.tb.connect((add_offset, 0), (binary_slicer, 0))
+		self.tb.connect((binary_slicer, 0), (char_to_float, 0))
+		self.tb.connect((char_to_float, 0), (multiply_const, 0))
+		self.tb.connect((multiply_const, 0), (float_to_uchar, 0))
+		self.tb.connect((float_to_uchar, 0), (pipe_sink, 0))
 
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
 
-	capture_thread = threading.Thread(target=capture)
-	capture_thread.start()
+	print "ggg"
 
-	time.sleep(3)
+	ec3k = EnergyCount3K()
 
-	radio_thread = threading.Thread(target=radio)
-	radio_thread.start()
-	
+	print "hhh"
+
+	ec3k.start()
+
+	while True:
+		print "Time"
+		time.sleep(1)
+
+	ec3k.stop()
