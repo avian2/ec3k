@@ -1,0 +1,30 @@
+import ec3k
+import signal
+import time
+
+want_stop = False
+
+def handler(signum, frame):
+	global want_stop
+	print "Signal %d caught! Stopping..." % (signum,)
+	want_stop = True
+
+def callback(state):
+	print state
+
+def main():
+	signal.signal(signal.SIGTERM, handler)
+	signal.signal(signal.SIGINT, handler)
+
+	my_ec3k = ec3k.EnergyCount3K(callback=callback)
+
+	my_ec3k.start()
+
+	while not want_stop:
+		time.sleep(2)
+		print "Noise level: %.1f dB" % (my_ec3k.noise_level,)
+
+	my_ec3k.stop()
+
+if __name__ == '__main__':
+	main()

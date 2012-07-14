@@ -7,9 +7,7 @@ import itertools
 import math
 import os.path
 import osmosdr
-import signal
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -316,30 +314,3 @@ class EnergyCount3K:
 		self.tb.connect((char_to_float, 0), (multiply_const, 0))
 		self.tb.connect((multiply_const, 0), (float_to_uchar, 0))
 		self.tb.connect((float_to_uchar, 0), (pipe_sink, 0))
-
-want_stop = False
-
-def handler(signum, frame):
-	global want_stop
-	print "Signal %d caught! Stopping..." % (signum,)
-	want_stop = True
-
-def callback(state):
-	print state
-
-def main():
-	signal.signal(signal.SIGTERM, handler)
-	signal.signal(signal.SIGINT, handler)
-
-	ec3k = EnergyCount3K(callback=callback)
-
-	ec3k.start()
-
-	while not want_stop:
-		time.sleep(2)
-		print "Noise level: %.1f dB" % ec3k.noise_level
-
-	ec3k.stop()
-
-if __name__ == '__main__':
-	main()
