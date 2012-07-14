@@ -1,15 +1,8 @@
 #!/usr/bin/env python
-##################################################
-# Gnuradio Python Flow Graph
-# Title: Top Block
-# Generated: Sat Jul 14 13:33:33 2012
-##################################################
-
 from gnuradio import digital
 from gnuradio import gr
-from gnuradio.eng_option import eng_option
 from gnuradio.gr import firdes
-from optparse import OptionParser
+
 import itertools
 import math
 import os.path
@@ -322,9 +315,6 @@ def callback(state):
 	print state
 
 def main():
-	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
-	(options, args) = parser.parse_args()
-
 	signal.signal(signal.SIGTERM, handler)
 	signal.signal(signal.SIGINT, handler)
 
@@ -333,7 +323,7 @@ def main():
 	ec3k.start()
 
 	while not want_stop:
-		time.sleep(1)
+		time.sleep(2)
 		print "Noise level: %.1f dB" % ec3k.noise_level
 
 	ec3k.stop()
