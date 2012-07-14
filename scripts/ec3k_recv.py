@@ -167,6 +167,7 @@ class EnergyCount3K:
 
 		self.want_stop = True
 		self.state = None
+		self.noise_level = -90
 
 	def start(self):
 		"""Start the receiver
@@ -210,6 +211,8 @@ class EnergyCount3K:
 		return self.state
 
 	def _log(self, msg):
+		"""Override this method to capture debug info
+		"""
 		pass
 
 	def _capture_thread(self):
@@ -235,9 +238,9 @@ class EnergyCount3K:
 					if self.callback:
 						self.callback(self.state)
 
-	def _power_probe_thread(self):
+	def _noise_probe_thread(self):
 		while not self.want_stop:
-			power = self.power_probe.level()
+			power = self.noise_probe.level()
 
 			self.noise_level = 10 * math.log10(max(1e-9, power))
 			self._log("Current noise level: %.1f dB" % (self.noise_level,))
@@ -267,14 +270,14 @@ class EnergyCount3K:
 		self.tb.connect((osmosdr_source, 0), (low_pass_filter, 0))
 
 		# Squelch
-		self.power_probe = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
-		self.squelch = gr.simple_squelch_cc(-90, 1)
+		self.noise_probe = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
+		self.squelch = gr.simple_squelch_cc(self.noise_level, 1)
 
-		power_probe_thread = threading.Thread(target=self._power_probe_thread)
-		power_probe_thread.start()
-		self.threads.append(power_probe_thread)
+		noise_probe_thread = threading.Thread(target=self._noise_probe_thread)
+		noise_probe_thread.start()
+		self.threads.append(noise_probe_thread)
 
-		self.tb.connect((low_pass_filter, 0), (self.power_probe, 0))
+		self.tb.connect((low_pass_filter, 0), (self.noise_probe, 0))
 		self.tb.connect((low_pass_filter, 0), (self.squelch, 0))
 
 		# FM demodulation
