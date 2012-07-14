@@ -12,10 +12,12 @@ from gnuradio.gr import firdes
 from optparse import OptionParser
 import itertools
 import math
+import os.path
 import osmosdr
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -181,6 +183,10 @@ class EnergyCount3K:
 		self.want_stop = False
 		self.threads = []
 
+		self.tempdir = tempfile.mkdtemp()
+		self.pipe = os.path.join(self.tempdir, "ec3k.pipe")
+		os.mkfifo(self.pipe)
+
 		capture_thread = threading.Thread(target=self._capture_thread)
 		capture_thread.start()
 		self.threads.append(capture_thread)
@@ -202,6 +208,9 @@ class EnergyCount3K:
 		for thread in self.threads:
 			thread.join()
 
+		os.unlink(self.pipe)
+		os.rmdir(self.tempdir)
+
 	def get(self):
 		"""Get the last received state
 		"""
@@ -213,7 +222,7 @@ class EnergyCount3K:
 	def _capture_thread(self):
 		p = subprocess.Popen(
 				["/home/avian/dev/ec3k/am433-0.0.4/am433/capture",
-				"-f", "ec3k.pipe" ],
+				"-f", self.pipe ],
 				bufsize=1,
 				stdout=subprocess.PIPE)
 
@@ -292,7 +301,7 @@ class EnergyCount3K:
 
 		float_to_uchar = gr.float_to_uchar()
 
-		pipe_sink = gr.file_sink(gr.sizeof_char*1, "ec3k.pipe")
+		pipe_sink = gr.file_sink(gr.sizeof_char*1, self.pipe)
 		pipe_sink.set_unbuffered(False)
 
 		self.tb.connect((quadrature_demod, 0), (add_offset, 0))
