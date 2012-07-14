@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from gnuradio import digital
 from gnuradio import gr
 from gnuradio.gr import firdes

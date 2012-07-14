@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import ec3k
 import signal
 import time

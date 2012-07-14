@@ -34,6 +34,7 @@ setup(name='ec3k',
 	author_email='tomaz.solc@tablix.org',
 
 	py_modules = ['ec3k'],
+	scripts = ['ec3k_recv'],
 	provides = [ 'ec3k' ],
 
 	cmdclass = { 'test': TestCommand }
