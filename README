@@ -1,31 +1,66 @@
-This is work-in-progress for supporting Energycount 3000 transmissions
-in the capture process. It is in various levels of brokenness for any other
-kind of signal.
+Software receiver for EnergyCount 3000
+======================================
 
-If you are not interested in hacking Energycount 3000, please use the
-upstream release!
+This module allows you to receive and decode radio transmissions from
+EnergyCount 3000 energy loggers using a RTL-SDR supported radio receiver and
+the GNU Radio software defined radio framework.
+
+EnergyCount 3000 transmitters plug between a device and an AC power outlet
+and monitor electrical energy usage. They transmit a packet with a status
+update every 5 seconds on the 868 MHz SRD band. Reported values include
+id of the device, current and maximum seen electrical power, total energy
+used and device uptime.
+
+
+Module content
+--------------
+
+The module exports a class that represents the radio receiver. You provide
+it with a callback function that is called each time a new status update is
+received::
+
+    def callback(state):
+    	print state
+
+    my_ec3k = ec3k.EnergyCount3K(callback=callback)
+
+    my_ec3k.start()
+    while not want_stop:
+    	time.sleep(2)
+    	print "Noise level: %.1f dB" % (my_ec3k.noise_level,)
+
+    my_ec3k.stop()
+
+You can also get the last received state by calling the ``get`` method on
+the object.
+
+Also included is an example command-line client ``ec3k_recv`` that prints
+received packets to standard output.
+
+
+Dependencies
+------------
+
+You need the GNU Radio framework, rtl-sdr and the gr-osmosdr package.
+
+http://sdr.osmocom.org/trac/wiki/rtl-sdr
+
+For baseband decoding a pure Python implementation is included in this
+package (``capture.py``).
+
+For more efficient decoding the C implementation can also be used. Obtain
+the source from the address below and make sure ``capture`` binary is in
+PATH:
 
 http://www.tablix.org/~avian/blog/articles/am433/
 
-More info on Energycount 3000:
 
-http://www.tablix.org/~avian/blog/archives/2012/03/reverse_engineering_energycount_3000/
+Source
+------
 
-License
-=======
+You can get a local copy of the development repository with::
 
-am433, ISM band receiver
-Copyright (C) 2011 Tomaz Solc <tomaz.solc@tablix.org>
+    git clone git://github.com/avian2/ec3k.git
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+..
+    vim: set filetype=rst:
