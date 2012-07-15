@@ -1,3 +1,19 @@
+"""Software receiver for EnergyCount 3000
+Copyright (C) 2012  Tomaz Solc <tomaz.solc@tablix.org>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 from gnuradio import digital
 from gnuradio import gr
 from gnuradio.gr import firdes
@@ -22,6 +38,19 @@ def which(program):
 class InvalidPacket(Exception): pass
 
 class EnergyCount3KState:
+	"""EnergyCount 3000 transmitter state.
+
+	This object contains fields contained in a single radio
+	packet:
+	id -- 16-bit ID of the device
+	uptime -- seconds since device power-on
+	since_reset -- seconds since last reset
+	energy_1 -- total energy in Ws (watt-seconds)
+	current_power -- current power in watts
+	max_power -- maximum power seen in watts
+	energy_2 -- total energy in Ws (watt-seconds)
+	timestamp -- UNIX timestamp of the packet
+	"""
 	def __init__(self, hex_bytes):
 		bits = self._get_bits(hex_bytes)
 		bits = [ not bit for bit in bits ]
@@ -38,8 +67,7 @@ class EnergyCount3KState:
 		self._decode_packet(bytes)
 
 	def _get_bits(self, hex_bytes):
-		"""Unpacks hex printed data into individual bits
-		"""
+		"""Unpacks hex printed data into individual bits"""
 		bits = []
 
 		for hex_byte in hex_bytes:
@@ -50,8 +78,7 @@ class EnergyCount3KState:
 		return bits
 
 	def _get_bytes(self, bits):
-		"""Shift bits into bytes, MSB first
-		"""
+		"""Shift bits into bytes, MSB first"""
 		bytes = [0] * (len(bits)/8+1)
 		for n, bit in enumerate(bits):
 			bytes[n/8] |= (int(bit) << (7-n%8))
@@ -59,8 +86,7 @@ class EnergyCount3KState:
 		return bytes
 
 	def _bit_shuffle(self, bits):
-		"""Weird bit shuffling operation required?
-		"""
+		"""Weird bit shuffling operation required"""
 		nbits = []
 
 		# first, invert byte bit order 
@@ -74,8 +100,7 @@ class EnergyCount3KState:
 		return nbits
 
 	def _descrambler(self, taps, bits):
-		"""Multiplicative, self-synchronizing scrambler
-		"""
+		"""Multiplicative, self-synchronizing scrambler"""
 		nbits = []
 
 		state = [ False ] * max(taps)
@@ -161,11 +186,18 @@ class EnergyCount3KState:
 					self.energy_2)
 
 class EnergyCount3K:
+	"""Object representing EnergyCount 3000 receiver"""
 	def __init__(self, id=None, callback=None):
 		"""Create a new EnergyCount3K object
 
-		id: ID of the device to monitor
-		callback: optional callable to call on each update
+		Takes the following optional keyword arguments:
+		id -- ID of the device to monitor
+		callback -- callable to call for each received packet
+
+		If ID is None, then packets for all devices will be received.
+
+		callback should be a function of a callable object that takes
+		one EnergyCount3KState object as its argument.
 		"""
 		self.id = id
 		self.callback = callback
@@ -175,8 +207,7 @@ class EnergyCount3K:
 		self.noise_level = -90
 
 	def start(self):
-		"""Start the receiver
-		"""
+		"""Start the receiver"""
 		assert self.want_stop
 
 		self.want_stop = False
@@ -192,8 +223,7 @@ class EnergyCount3K:
 		self.tb.start()
 
 	def stop(self):
-		"""Stop the receiver, clean up
-		"""
+		"""Stop the receiver and clean up"""
 		assert not self.want_stop
 
 		self.want_stop = True
@@ -207,12 +237,14 @@ class EnergyCount3K:
 
 	def get(self):
 		"""Get the last received state
+
+		Returns data from the last received packet as a 
+		EnergyCount3KState object.
 		"""
 		return self.state
 
 	def _log(self, msg):
-		"""Override this method to capture debug info
-		"""
+		"""Override this method to capture debug information"""
 		pass
 
 	def _start_capture(self):
