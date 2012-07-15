@@ -10,12 +10,12 @@ def handler(signum, frame):
 	print "Signal %d caught! Stopping..." % (signum,)
 	want_stop = True
 
-def callback(state):
-	print state
-
 def main():
 	signal.signal(signal.SIGTERM, handler)
 	signal.signal(signal.SIGINT, handler)
+
+	def callback(state):
+		print state
 
 	my_ec3k = ec3k.EnergyCount3K(callback=callback)
 

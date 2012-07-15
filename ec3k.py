@@ -11,6 +11,14 @@ import tempfile
 import threading
 import time
 
+def which(program):
+	for path in os.environ["PATH"].split(os.pathsep):
+		fpath = os.path.join(path, program)
+		if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+			return fpath
+
+	return None
+
 class InvalidPacket(Exception): pass
 
 class EnergyCount3KState:
@@ -174,18 +182,11 @@ class EnergyCount3K:
 		self.want_stop = False
 		self.threads = []
 
-		self.capture_running = threading.Lock()
-		self.capture_running.acquire()
-
-		self.tempdir = tempfile.mkdtemp()
-		self.pipe = os.path.join(self.tempdir, "ec3k.pipe")
-		os.mkfifo(self.pipe)
+		self._start_capture()
 
 		capture_thread = threading.Thread(target=self._capture_thread)
 		capture_thread.start()
 		self.threads.append(capture_thread)
-
-		self.capture_running.acquire()
 
 		self._setup_top_block()
 		self.tb.start()
@@ -195,15 +196,14 @@ class EnergyCount3K:
 		"""
 		assert not self.want_stop
 
-		self.tb.stop()
-
 		self.want_stop = True
 
 		for thread in self.threads:
 			thread.join()
 
-		os.unlink(self.pipe)
-		os.rmdir(self.tempdir)
+		self.tb.stop()
+
+		self._clean_capture()
 
 	def get(self):
 		"""Get the last received state
@@ -215,22 +215,41 @@ class EnergyCount3K:
 		"""
 		pass
 
-	def _capture_thread(self):
-		p = subprocess.Popen(
-				["/usr/bin/env",
-				"capture", "-f", self.pipe ],
-				bufsize=1,
-				stdout=subprocess.PIPE)
+	def _start_capture(self):
+		self.tempdir = tempfile.mkdtemp()
+		self.pipe = os.path.join(self.tempdir, "ec3k.pipe")
+		os.mkfifo(self.pipe)
 
-		self.capture_running.release()
+		self.capture_process = None
+
+		try:
+			for program in ["capture", "capture.py"]:
+				fpath = which(program)
+				if fpath is not None:
+					self.capture_process = subprocess.Popen(
+						[fpath, "-f", self.pipe],
+						bufsize=1,
+						stdout=subprocess.PIPE)
+					return
+
+			raise Exception("Can't find capture binary in PATH")
+		except:
+			self._clean_capture()
+			raise
+
+	def _clean_capture(self):
+		if self.capture_process:
+			self.capture_process.wait()
+			self.capture_process = None
+
+		os.unlink(self.pipe)
+		os.rmdir(self.tempdir)
+
+	def _capture_thread(self):
 
 		while not self.want_stop:
 
-			if p.poll():
-				self._log("Capture process died")
-				break
-
-			line = p.stdout.readline()
+			line = self.capture_process.stdout.readline()
 			fields = line.split()
 			if fields and (fields[0] == 'data'):
 				self._log("Decoding packet")
