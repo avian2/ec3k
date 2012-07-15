@@ -29,7 +29,7 @@ setup(name='ec3k',
 	version='1.0.0',
 	description='Use rtl-sdr to receive EnergyCount 3000 transmissions.',
 	license='GPLv3',
-	long_description=open("README").read(),
+	long_description=open("README.rst").read(),
 	author='Tomaz Solc',
 	author_email='tomaz.solc@tablix.org',
 
