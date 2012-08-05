@@ -22,6 +22,8 @@ import itertools
 import math
 import os.path
 import osmosdr
+import select
+import signal
 import subprocess
 import tempfile
 import threading
@@ -232,6 +234,7 @@ class EnergyCount3K:
 			thread.join()
 
 		self.tb.stop()
+		self.tb.wait()
 
 		self._clean_capture()
 
@@ -271,6 +274,7 @@ class EnergyCount3K:
 
 	def _clean_capture(self):
 		if self.capture_process:
+			self.capture_process.send_signal(signal.SIGTERM)
 			self.capture_process.wait()
 			self.capture_process = None
 
@@ -281,20 +285,22 @@ class EnergyCount3K:
 
 		while not self.want_stop:
 
-			line = self.capture_process.stdout.readline()
-			fields = line.split()
-			if fields and (fields[0] == 'data'):
-				self._log("Decoding packet")
-				try:
-					state = EnergyCount3KState(fields[1:])
-				except InvalidPacket, e:
-					self._log("Invalid packet: %s" % (e,))
-					continue
+			rlist, wlist, xlist = select.select([self.capture_process.stdout], [], [], 1)
+			if rlist:
+				line = rlist[0].readline()
+				fields = line.split()
+				if fields and (fields[0] == 'data'):
+					self._log("Decoding packet")
+					try:
+						state = EnergyCount3KState(fields[1:])
+					except InvalidPacket, e:
+						self._log("Invalid packet: %s" % (e,))
+						continue
 
-				if (not self.id) or (state.id == self.id):
-					self.state = state
-					if self.callback:
-						self.callback(self.state)
+					if (not self.id) or (state.id == self.id):
+						self.state = state
+						if self.callback:
+							self.callback(self.state)
 
 	def _noise_probe_thread(self):
 		while not self.want_stop:
