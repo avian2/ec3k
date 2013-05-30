@@ -56,6 +56,23 @@ Python implementation.
 http://www.tablix.org/~avian/blog/articles/am433/
 
 
+Installation
+------------
+
+Install ``ec3k`` as you would most other Python packages::
+
+    $ python setup.py install
+    $ python setup.py test
+
+To try it out, run the example command-line client::
+
+    $ ec3k_recv
+
+Please note that the receiver needs some time to adapt to the signal and noise
+level in your environment. It might take a few minutes before ``ec3k_recv``
+prints out any decoded packets.
+
+
 Known problems
 --------------
 
@@ -66,8 +83,8 @@ gr-osmosdr or rtl-sdr.
 
 Stopping the receiver sometimes causes a segfault.
 
-Only half of the data from the EnergyCounter 3000 is decoded. The meaning
-of the rest of the bits is currently unknown.
+Only half of the data from the EnergyCount 3000 is decoded. The meaning of the
+rest of the bits is currently unknown.
 
 No CRC or data integrity checks are performed on received packets, which
 sometimes means the receiver will report bogus readings.
