@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import sys
+from optparse import OptionParser
 import os
 
 BUFFSIZE = 4096
@@ -24,6 +25,12 @@ MOD_UNKNOWN = 2
 MOD_BINARY  = 5
 
 MIN_BREAK = 100
+
+verbose = False
+
+def log(msg):
+	if verbose:
+		sys.stderr.write(msg + "\n")
 
 class Packet:
 	TRIM = 10
@@ -125,7 +132,7 @@ class Packet:
 				pl = t - pt
 				#print pl, 'from', pt, 'to', t, pv, '->', v
 				if pl < 2:
-					print >> sys.stderr, 'pulse too short', pl
+					log('pulse too short %d' % (pl,))
 					return False
 				if cp is None:
 					cp = pl
@@ -157,10 +164,10 @@ class Packet:
 					e = abs((r-n)/n)
 					if e > 0.4:
 						#print e
-						print >> sys.stderr, 'inconsistent pulse length'
+						log('inconsistent pulse length')
 						return False
 					if n > 20:
-						print >> sys.stderr, 'too many consecutive same bits'
+						log('too many consecutive same bits')
 						return False
 					cp = (cp*2.0 + pl/n) / 3.0
 				pv = v
@@ -259,16 +266,27 @@ def run_loop(fd):
 		readlen = len(data)
 	
 	
-	
-	
-	
-	
-	
-	
+def main():
+	global verbose
+
+	parser = OptionParser()
+
+	parser.add_option("-f", dest="input", metavar="FILE",
+			help="read baseband data from FILE")
+	parser.add_option("-v", dest="verbose", action="store_true",
+			help="enable verbose decoder debug output on stderr")
+
+	(options, args) = parser.parse_args()
+
+	if options.input:
+		fd = open(options.input, 'rb')
+	else:
+		fd = sys.stdin
+
+	verbose = options.verbose
+
+	run_loop(fd)
+
 
 if __name__ == "__main__":
-	try:
-		fd = open(sys.argv[2])
-	except IndexError:
-		fd = sys.stdin
-	run_loop(fd)
+	main()
