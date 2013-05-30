@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """Software receiver for EnergyCount 3000
-Copyright (C) 2012  Gasper Zejn
+Copyright (C) 2013  Gasper Zejn
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
