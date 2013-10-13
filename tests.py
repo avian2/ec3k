@@ -14,3 +14,5 @@ class TestEnergyCount3KState(unittest.TestCase):
 		self.assertEqual(state.current_power, 0)
 		self.assertEqual(state.max_power, 86.8)
 		self.assertEqual(state.energy_2, 2221664)
+
+		self.assertEqual(state.energy_2, state.energy_1 * 16)

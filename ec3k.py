@@ -176,15 +176,13 @@ class EnergyCount3KState:
 			"running time    : %d seconds\n"
 			"energy          : %d Ws\n"
 			"current power   : %.1f W\n"
-			"max power       : %.1f W\n"
-			"energy          : %d Ws") % (
+			"max power       : %.1f W") % (
 					self.id,
 					self.since_reset,
 					self.running_time,
 					self.energy_1,
 					self.current_power,
-					self.max_power,
-					self.energy_2)
+					self.max_power)
 
 class EnergyCount3K:
 	"""Object representing EnergyCount 3000 receiver"""
