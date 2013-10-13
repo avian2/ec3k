@@ -8,8 +8,8 @@ class TestEnergyCount3KState(unittest.TestCase):
 		state = ec3k.EnergyCount3KState(hex_bytes)
 
 		self.assertEqual(state.id, 0xf100)
-		self.assertEqual(state.uptime, 36725)
-		self.assertEqual(state.since_reset, 6006)
+		self.assertEqual(state.since_reset, 36725)
+		self.assertEqual(state.running_time, 6006)
 		self.assertEqual(state.energy_1, 138854)
 		self.assertEqual(state.current_power, 0)
 		self.assertEqual(state.max_power, 86.8)

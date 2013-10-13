@@ -44,8 +44,8 @@ class EnergyCount3KState:
 	This object contains fields contained in a single radio
 	packet:
 	id -- 16-bit ID of the device
-	uptime -- seconds since device power-on
 	since_reset -- seconds since last reset
+	running_time -- cumulative seconds with non-zero power
 	energy_1 -- total energy in Ws (watt-seconds)
 	current_power -- current power in watts
 	max_power -- maximum power seen in watts
@@ -160,8 +160,8 @@ class EnergyCount3KState:
 			raise InvalidPacket("Wrong length: %d" % len(bytes))
 
 		self.id			= self._unpack_int(bytes[1:3])
-		self.uptime		= self._unpack_int(bytes[3:5])
-		self.since_reset	= self._unpack_int(bytes[5:9])
+		self.since_reset	= self._unpack_int(bytes[3:5])
+		self.running_time	= self._unpack_int(bytes[5:9])
 		self.energy_1		= self._unpack_int(bytes[9:16])
 		self.current_power	= self._unpack_int(bytes[16:18])/10.0
 		self.max_power		= self._unpack_int(bytes[18:20])/10.0
@@ -172,15 +172,15 @@ class EnergyCount3KState:
 
 	def __str__(self):
 		return	("id              : %04x\n"
-			"uptime          : %d seconds\n"
 			"since last reset: %d seconds\n"
+			"running time    : %d seconds\n"
 			"energy          : %d Ws\n"
 			"current power   : %.1f W\n"
 			"max power       : %.1f W\n"
 			"energy          : %d Ws") % (
 					self.id,
-					self.uptime,
 					self.since_reset,
+					self.running_time,
 					self.energy_1,
 					self.current_power,
 					self.max_power,
