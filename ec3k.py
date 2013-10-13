@@ -15,8 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 from gnuradio import digital
-from gnuradio import gr
-from gnuradio.gr import firdes
+from gnuradio import gr, blocks, filter, analog
 
 import itertools
 import math
@@ -321,21 +320,22 @@ class EnergyCount3K:
 		center_freq = 868.402e6
 
 		# Radio receiver, initial downsampling
-		osmosdr_source = osmosdr.source_c(args="nchan=1 rtl=0,buffers=16")
+		osmosdr_source = osmosdr.source(args="nchan=1 rtl=0,buffers=16")
 		osmosdr_source.set_sample_rate(samp_rate*oversample)
 		osmosdr_source.set_center_freq(center_freq, 0)
 		osmosdr_source.set_freq_corr(0, 0)
 		osmosdr_source.set_gain_mode(1, 0)
 		osmosdr_source.set_gain(0, 0)
 
-		low_pass_filter = gr.fir_filter_ccf(oversample, 
-				firdes.low_pass(1, samp_rate*oversample, 90e3, 8e3, firdes.WIN_HAMMING, 6.76))
+		taps = filter.firdes.low_pass(1, samp_rate*oversample, 90e3, 8e3,
+				filter.firdes.WIN_HAMMING, 6.76)
+		low_pass_filter = filter.fir_filter_ccf(oversample, taps)
 
 		self.tb.connect((osmosdr_source, 0), (low_pass_filter, 0))
 
 		# Squelch
-		self.noise_probe = gr.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
-		self.squelch = gr.simple_squelch_cc(self.noise_level, 1)
+		self.noise_probe = analog.probe_avg_mag_sqrd_c(0, 1.0/samp_rate/1e2)
+		self.squelch = analog.simple_squelch_cc(self.noise_level, 1)
 
 		noise_probe_thread = threading.Thread(target=self._noise_probe_thread)
 		noise_probe_thread.start()
@@ -345,23 +345,23 @@ class EnergyCount3K:
 		self.tb.connect((low_pass_filter, 0), (self.squelch, 0))
 
 		# FM demodulation
-		quadrature_demod = gr.quadrature_demod_cf(1)
+		quadrature_demod = analog.quadrature_demod_cf(1)
 
 		self.tb.connect((self.squelch, 0), (quadrature_demod, 0))
 
 		# Binary slicing, transformation into capture-compatible format
 
-		add_offset = gr.add_const_vff((-1e-3, ))
+		add_offset = blocks.add_const_vff((-1e-3, ))
 
 		binary_slicer = digital.binary_slicer_fb()
 
-		char_to_float = gr.char_to_float(1, 1)
+		char_to_float = blocks.char_to_float(1, 1)
 
-		multiply_const = gr.multiply_const_vff((255, ))
+		multiply_const = blocks.multiply_const_vff((255, ))
 
-		float_to_uchar = gr.float_to_uchar()
+		float_to_uchar = blocks.float_to_uchar()
 
-		pipe_sink = gr.file_sink(gr.sizeof_char*1, self.pipe)
+		pipe_sink = blocks.file_sink(gr.sizeof_char*1, self.pipe)
 		pipe_sink.set_unbuffered(False)
 
 		self.tb.connect((quadrature_demod, 0), (add_offset, 0))
