@@ -65,10 +65,10 @@ class EnergyCount3KState:
 		bits = self._bit_unstuff(bits)
 
 		bits = self._bit_shuffle(bits)
-		
-		bytes = self._get_bytes(bits)
 
-		self._decode_packet(bytes)
+		nibbles = self._get_nibbles(bits)
+
+		self._decode_packet(nibbles)
 
 	def _get_bits(self, hex_bytes):
 		"""Unpacks hex printed data into individual bits"""
@@ -81,13 +81,13 @@ class EnergyCount3KState:
 
 		return bits
 
-	def _get_bytes(self, bits):
+	def _get_nibbles(self, bits):
 		"""Shift bits into bytes, MSB first"""
-		bytes = [0] * (len(bits)/8+1)
+		nibbles = [0] * (len(bits) / 4)
 		for n, bit in enumerate(bits):
-			bytes[n/8] |= (int(bit) << (7-n%8))
+			nibbles[n/4] |= (int(bit) << (3-n%4))
 
-		return bytes
+		return nibbles
 
 	def _bit_shuffle(self, bits):
 		"""Weird bit shuffling operation required"""
@@ -97,9 +97,6 @@ class EnergyCount3KState:
 		args = [iter(bits)] * 8
 		for bit_group in itertools.izip_longest(fillvalue=False, *args):
 			nbits += reversed(bit_group)
-
-		# add 4 zero bits at the start
-		#nbits = [False]*4 + nbits
 
 		return nbits
 
@@ -151,10 +148,10 @@ class EnergyCount3KState:
 
 		return nbits
 
-	def _unpack_int(self, bytes):
+	def _unpack_int(self, nibbles):
 		i = 0
-		for byte in bytes:
-			i = (i * 0x100) + byte
+		for nibble in nibbles:
+			i = (i * 0x10) + nibble
 
 		return i
 
@@ -169,22 +166,27 @@ class EnergyCount3KState:
 
 		return ((data << 8) | (crc >> 8)) ^ (data >> 4) ^ (data << 3)
 
-	def _decode_packet(self, bytes):
-		if len(bytes) != 43:
-			raise InvalidPacket("Wrong length: %d" % len(bytes))
+	def _decode_packet(self, nibbles):
+		if len(nibbles) != 84:
+			raise InvalidPacket("Wrong length: %d" % len(nibbles))
 
-		self.id			= self._unpack_int(bytes[1:3])
-		self.since_reset	= self._unpack_int(bytes[3:5])
-		self.running_time	= self._unpack_int(bytes[5:9])
-		self.energy_1		= self._unpack_int(bytes[9:16])
-		self.current_power	= self._unpack_int(bytes[16:18])/10.0
-		self.max_power		= self._unpack_int(bytes[18:20])/10.0
-		self.energy_2		= self._unpack_int(bytes[20:23])
+		start_mark		= self._unpack_int(nibbles[ 0: 1])
+		if start_mark != 0x9:
+			raise InvalidPacket("Invalid start mark: %d" % (start_mark,))
+
+		self.id			= self._unpack_int(nibbles[ 1: 5])
+		self.since_reset	= self._unpack_int(nibbles[ 5: 9])
+		self.running_time	= self._unpack_int(nibbles[ 9:17])
+		self.energy_1		= self._unpack_int(nibbles[17:31])
+		self.current_power	= self._unpack_int(nibbles[31:35])/10.0
+		self.max_power		= self._unpack_int(nibbles[35:39])/10.0
+		self.energy_2		= self._unpack_int(nibbles[39:45])
 		self.timestamp		= time.time()
 
+
 		crc = 0xffff
-		for i in xrange(41):
-			crc = self._crc_ccitt_update(crc, bytes[i])
+		for i in xrange(0, 82, 2):
+			crc = self._crc_ccitt_update(crc, nibbles[i] * 0x10 + nibbles[i+1])
 
 		if crc != self.CRC:
 			raise InvalidPacket("CRC mismatch: %d != %d" % (crc, self.CRC))
