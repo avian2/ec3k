@@ -52,7 +52,7 @@ class EnergyCount3KState:
 	energy -- total energy in Ws (watt-seconds)
 
 	power_current -- current device power in watts
-	power_max -- maximum device power in watts since last reset
+	power_max -- maximum device power in watts (reset at unknown intervals)
 
 	reset_counter -- total number of transmitter resets
 

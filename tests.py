@@ -29,8 +29,10 @@ class TestEnergyCount3KState(unittest.TestCase):
 		self.assertEqual(state.current_power, state.power_current)
 		self.assertEqual(state.max_power, state.power_max)
 
-	def test_decode(self):
+	def test_decode_log(self):
 		count = count_invalid = 0
+
+		last_state = None
 
 		path = os.path.join(os.path.dirname(__file__), "tests.json")
 		for line in open(path):
@@ -41,7 +43,23 @@ class TestEnergyCount3KState(unittest.TestCase):
 			except ec3k.InvalidPacket:
 				count_invalid += 1
 
+			#print state
+
+			if last_state is not None:
+				self.assertTrue(state.time_total >= last_state.time_total)
+				self.assertTrue(state.time_on >= last_state.time_on)
+				self.assertTrue(state.energy >= last_state.energy)
+
+				# It seems this field gets reset sometimes
+				#self.assertTrue(state.power_max >= last_state.power_max)
+				self.assertTrue(state.reset_counter >= last_state.reset_counter)
+
+			self.assertTrue(state.power_max <= 4.0)
+			self.assertTrue(state.power_current <= state.power_max)
+
+			last_state = state
+
 			count += 1
 
-		self.assertEqual(count, 6160)
+		self.assertEqual(count, 6151)
 		self.assertEqual(count_invalid, 173)
