@@ -272,12 +272,16 @@ class EnergyCount3KState:
 
 class EnergyCount3K:
 	"""Object representing EnergyCount 3000 receiver"""
-	def __init__(self, id=None, callback=None):
+	def __init__(self, id=None, callback=None, freq=868.402e6, device=0, osmosdr_args=None):
 		"""Create a new EnergyCount3K object
 
 		Takes the following optional keyword arguments:
 		id -- ID of the device to monitor
 		callback -- callable to call for each received packet
+		freq -- central frequency of the channel on which to listen for
+		updates (default is known to work for European devices)
+		device -- rtl-sdr device to use
+		osmosdr_args -- any additional OsmoSDR arguments (e.g. "offset_tune=1")
 
 		If ID is None, then packets for all devices will be received.
 
@@ -286,6 +290,9 @@ class EnergyCount3K:
 		"""
 		self.id = id
 		self.callback = callback
+		self.freq = freq
+		self.device = device
+		self.osmosdr_args = osmosdr_args
 
 		self.want_stop = True
 		self.state = None
@@ -401,12 +408,15 @@ class EnergyCount3K:
 
 		samp_rate = 96000
 		oversample = 10
-		center_freq = 868.402e6
 
 		# Radio receiver, initial downsampling
-		osmosdr_source = osmosdr.source(args="nchan=1 rtl=0,buffers=16")
+		args = "nchan=1 rtl=%d,buffers=16" % (self.device,)
+		if self.osmosdr_args:
+			args += ",%s" % (self.osmosdr_args,)
+
+		osmosdr_source = osmosdr.source(args=args)
 		osmosdr_source.set_sample_rate(samp_rate*oversample)
-		osmosdr_source.set_center_freq(center_freq, 0)
+		osmosdr_source.set_center_freq(self.freq, 0)
 		osmosdr_source.set_freq_corr(0, 0)
 		osmosdr_source.set_gain_mode(1, 0)
 		osmosdr_source.set_gain(0, 0)
