@@ -2,3 +2,4 @@ include HISTORY
 include LICENSE
 include README.rst
 include tests.py
+include tests.json
