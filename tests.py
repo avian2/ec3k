@@ -1,5 +1,8 @@
 import ec3k
+import os
+import sys
 import unittest
+import json
 
 class TestEnergyCount3KState(unittest.TestCase):
 	def test_basic(self):
@@ -16,3 +19,20 @@ class TestEnergyCount3KState(unittest.TestCase):
 		self.assertEqual(state.energy_2, 2221664)
 
 		self.assertEqual(state.energy_2, state.energy_1 * 16)
+
+	def test_decode(self):
+		count = count_invalid = 0
+
+		path = os.path.join(os.path.dirname(__file__), "tests.json")
+		for line in open(path):
+			hex_bytes = json.loads(line)
+
+			try:
+				state = ec3k.EnergyCount3KState(hex_bytes)
+			except ec3k.InvalidPacket:
+				count_invalid += 1
+
+			count += 1
+
+		self.assertEqual(count, 6160)
+		self.assertEqual(count_invalid, 173)

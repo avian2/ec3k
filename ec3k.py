@@ -52,6 +52,9 @@ class EnergyCount3KState:
 	energy_2 -- total energy in Ws (watt-seconds)
 	timestamp -- UNIX timestamp of the packet
 	"""
+	
+	CRC = 0xf0b8
+
 	def __init__(self, hex_bytes):
 		bits = self._get_bits(hex_bytes)
 		bits = [ not bit for bit in bits ]
@@ -96,7 +99,7 @@ class EnergyCount3KState:
 			nbits += reversed(bit_group)
 
 		# add 4 zero bits at the start
-		nbits = [False]*4 + nbits
+		#nbits = [False]*4 + nbits
 
 		return nbits
 
@@ -155,6 +158,17 @@ class EnergyCount3KState:
 
 		return i
 
+	def _crc_ccitt_update(self, crc, data):
+		assert data >= 0
+		assert data < 0x100
+		assert crc >= 0
+		assert crc <= 0x10000
+
+		data ^= crc & 0xff
+		data ^= (data << 4) & 0xff
+
+		return ((data << 8) | (crc >> 8)) ^ (data >> 4) ^ (data << 3)
+
 	def _decode_packet(self, bytes):
 		if len(bytes) != 43:
 			raise InvalidPacket("Wrong length: %d" % len(bytes))
@@ -168,7 +182,12 @@ class EnergyCount3KState:
 		self.energy_2		= self._unpack_int(bytes[20:23])
 		self.timestamp		= time.time()
 
-		# TODO: checksum checking
+		crc = 0xffff
+		for i in xrange(41):
+			crc = self._crc_ccitt_update(crc, bytes[i])
+
+		if crc != self.CRC:
+			raise InvalidPacket("CRC mismatch: %d != %d" % (crc, self.CRC))
 
 	def __str__(self):
 		return	("id              : %04x\n"
