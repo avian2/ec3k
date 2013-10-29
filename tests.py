@@ -11,14 +11,23 @@ class TestEnergyCount3KState(unittest.TestCase):
 		state = ec3k.EnergyCount3KState(hex_bytes)
 
 		self.assertEqual(state.id, 0xf100)
-		self.assertEqual(state.since_reset, 36725)
-		self.assertEqual(state.running_time, 6006)
-		self.assertEqual(state.energy_1, 138854)
-		self.assertEqual(state.current_power, 0)
-		self.assertEqual(state.max_power, 86.8)
-		self.assertEqual(state.energy_2, 2221664)
+		self.assertEqual(state.time_total, 36725)
+		self.assertEqual(state.time_on, 6006)
+		self.assertEqual(state.energy, 138854)
+		self.assertEqual(state.power_current, 0.0)
+		self.assertEqual(state.power_max, 86.8)
+		self.assertEqual(state.reset_counter, 5)
+		self.assertFalse(state.device_on_flag)
 
-		self.assertEqual(state.energy_2, state.energy_1 * 16)
+		self.assertTrue(str(state))
+
+		# Compatibility with older versions
+		self.assertEqual(state.time_total, state.uptime)
+		self.assertEqual(state.time_on, state.since_reset)
+		self.assertEqual(state.energy_1, state.energy)
+		self.assertEqual(state.energy_2, state.energy * 16)
+		self.assertEqual(state.current_power, state.power_current)
+		self.assertEqual(state.max_power, state.power_max)
 
 	def test_decode(self):
 		count = count_invalid = 0

@@ -43,14 +43,22 @@ class EnergyCount3KState:
 
 	This object contains fields contained in a single radio
 	packet:
+
 	id -- 16-bit ID of the device
-	since_reset -- seconds since last reset
-	running_time -- cumulative seconds with non-zero power
-	energy_1 -- total energy in Ws (watt-seconds)
-	current_power -- current power in watts
-	max_power -- maximum power seen in watts
-	energy_2 -- total energy in Ws (watt-seconds)
-	timestamp -- UNIX timestamp of the packet
+
+	time_total -- time in seconds since last reset
+	time_on -- time in seconds since last reset with non-zero device power
+
+	energy -- total energy in Ws (watt-seconds)
+
+	power_current -- current device power in watts
+	power_max -- maximum device power in watts since last reset
+
+	reset_counter -- total number of transmitter resets
+
+	device_on_flag -- true if device is currently drawing non-zero power
+
+	timestamp -- UNIX timestamp of the packet reception (not accurate)
 	"""
 	
 	CRC = 0xf0b8
@@ -68,6 +76,7 @@ class EnergyCount3KState:
 
 		nibbles = self._get_nibbles(bits)
 
+		self._check_crc(nibbles)
 		self._decode_packet(nibbles)
 
 	def _get_bits(self, hex_bytes):
@@ -148,13 +157,6 @@ class EnergyCount3KState:
 
 		return nbits
 
-	def _unpack_int(self, nibbles):
-		i = 0
-		for nibble in nibbles:
-			i = (i * 0x10) + nibble
-
-		return i
-
 	def _crc_ccitt_update(self, crc, data):
 		assert data >= 0
 		assert data < 0x100
@@ -166,23 +168,9 @@ class EnergyCount3KState:
 
 		return ((data << 8) | (crc >> 8)) ^ (data >> 4) ^ (data << 3)
 
-	def _decode_packet(self, nibbles):
+	def _check_crc(self, nibbles):
 		if len(nibbles) != 84:
 			raise InvalidPacket("Wrong length: %d" % len(nibbles))
-
-		start_mark		= self._unpack_int(nibbles[ 0: 1])
-		if start_mark != 0x9:
-			raise InvalidPacket("Invalid start mark: %d" % (start_mark,))
-
-		self.id			= self._unpack_int(nibbles[ 1: 5])
-		self.since_reset	= self._unpack_int(nibbles[ 5: 9])
-		self.running_time	= self._unpack_int(nibbles[ 9:17])
-		self.energy_1		= self._unpack_int(nibbles[17:31])
-		self.current_power	= self._unpack_int(nibbles[31:35])/10.0
-		self.max_power		= self._unpack_int(nibbles[35:39])/10.0
-		self.energy_2		= self._unpack_int(nibbles[39:45])
-		self.timestamp		= time.time()
-
 
 		crc = 0xffff
 		for i in xrange(0, 82, 2):
@@ -191,19 +179,96 @@ class EnergyCount3KState:
 		if crc != self.CRC:
 			raise InvalidPacket("CRC mismatch: %d != %d" % (crc, self.CRC))
 
+	def _unpack_int(self, nibbles):
+		i = 0
+		for nibble in nibbles:
+			i = (i * 0x10) + nibble
+
+		return i
+
+	def _decode_packet(self, nibbles):
+
+		start_mark		= self._unpack_int(	nibbles[ 0: 1])
+		if start_mark != 0x9:
+			raise InvalidPacket("Unknown start mark: 0x%x (please report this)" % (start_mark,))
+
+		self.id			= self._unpack_int(	nibbles[ 1: 5])
+		time_total_low 		= 			nibbles[ 5: 9]
+		pad_1			= self._unpack_int(	nibbles[ 9:13])
+		time_on_low		= 			nibbles[13:17]
+		pad_2 			= self._unpack_int(	nibbles[17:24])
+		energy_low		= 			nibbles[24:31]
+		self.power_current	= self._unpack_int(	nibbles[31:35]) / 10.0
+		self.power_max		= self._unpack_int(	nibbles[35:39]) / 10.0
+		# unknown? (seems to be used for internal calculations)
+		self.energy_2		= self._unpack_int(	nibbles[39:45])
+		# 						nibbles[45:59]
+		time_total_high		=			nibbles[59:62]
+		pad_3			= self._unpack_int(	nibbles[62:67])
+		energy_high		=			nibbles[67:71]
+		time_on_high		=			nibbles[71:74]
+		self.reset_counter	= self._unpack_int(	nibbles[74:76])
+		flags			= self._unpack_int(	nibbles[76:77])
+		pad_4			= self._unpack_int(	nibbles[77:78])
+		# crc			= self._unpack_int(	nibbles[78:82])
+
+		# We don't really care about the end mark, or whether it got
+		# corrupted, since it's not covered by the CRC check.
+
+		#end_mark		= self._unpack_int(	nibbles[82:84])
+		#if end_mark != 0x7e:
+		#	raise InvalidPacket("Invalid end mark: %d" % (end_mark,))
+
+		if pad_1 != 0:
+			raise InvalidPacket("Padding 1 not zero: 0x%x (please report this)" % (pad_1,))
+		if pad_2 != 0:
+			raise InvalidPacket("Padding 2 not zero: 0x%x (please report this)" % (pad_2,))
+		if pad_3 != 0:
+			raise InvalidPacket("Padding 3 not zero: 0x%x (please report this)" % (pad_3,))
+		if pad_4 != 0:
+			raise InvalidPacket("Padding 4 not zero: 0x%x (please report this)" % (pad_4,))
+
+		self.timestamp		= time.time()
+
+		self.time_total	= self._unpack_int(time_total_high + time_total_low)
+		self.time_on	= self._unpack_int(time_on_high + time_on_low)
+
+		self.energy	= self._unpack_int(energy_high + energy_low)
+
+		if flags == 0x8:
+			self.device_on_flag = True
+		elif flags == 0x0:
+			self.device_on_flag = False
+		else:
+			raise InvalidPacket("Unknown flag value: 0x%x (please report this)" % (flags,))
+
+		# Set properties for compatibility with older ec3k module versions
+		self.uptime = self.time_total
+		self.since_reset = self.time_on
+		self.energy_1 = self.energy
+		self.current_power = self.power_current
+		self.max_power = self.power_max
+
 	def __str__(self):
+		if self.device_on_flag:
+			flag = '*'
+		else:
+			flag = ' '
+
 		return	("id              : %04x\n"
-			"since last reset: %d seconds\n"
-			"running time    : %d seconds\n"
-			"energy          : %d Ws\n"
-			"current power   : %.1f W\n"
-			"max power       : %.1f W") % (
+			"time total      : %d seconds\n"
+			"time on %s       : %d seconds\n"
+			"energy %s        : %d Ws\n"
+			"power current   : %.1f W\n"
+			"power max       : %.1f W\n"
+			"reset counter   : %d") % (
 					self.id,
-					self.since_reset,
-					self.running_time,
-					self.energy_1,
-					self.current_power,
-					self.max_power)
+					self.time_total,
+					flag, self.time_on,
+					flag, self.energy,
+					self.power_current,
+					self.power_max,
+					self.reset_counter)
 
 class EnergyCount3K:
 	"""Object representing EnergyCount 3000 receiver"""
