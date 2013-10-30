@@ -1,4 +1,19 @@
 Version history for ec3k
 
+1.1.0	2013-10-30
+
+	* Implemented CRC check for received packets.
+	* Frequency, rtl-sdr device and other settings can be set in
+	  EnergyCount3K constructor.
+	* Added device_on_flag and reset_counter fields to EnergyCount3KState.
+	* Renamed fields in EnergyCount3KState object (old names remain as
+	  aliases for backwards compatibility with 1.0.x)
+	* Update for GNU Radio 3.7.0 compatibility.
+
+1.0.1	2013-05-30
+
+	* Better clean-up of threads.
+	* Less verbose capture.py by default.
 1.0.0
+
 	* First release
