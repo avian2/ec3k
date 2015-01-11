@@ -1,5 +1,10 @@
 Version history for ec3k
 
+1.1.1   2015-01-11
+
+        * Fix "output 1 is not connected internally" error when using
+          gr-osmosdr versions v0.1.1 and later
+
 1.1.0	2013-10-30
 
 	* Implemented CRC check for received packets.
