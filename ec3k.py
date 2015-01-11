@@ -1,5 +1,5 @@
 """Software receiver for EnergyCount 3000
-Copyright (C) 2013  Tomaz Solc <tomaz.solc@tablix.org>
+Copyright (C) 2015  Tomaz Solc <tomaz.solc@tablix.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

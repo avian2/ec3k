@@ -120,7 +120,7 @@ License
 
 ec3k, software receiver for EnergyCount 3000
 
-Copyright (C) 2013  Tomaz Solc <tomaz.solc@tablix.org>
+Copyright (C) 2015  Tomaz Solc <tomaz.solc@tablix.org>
 
 Copyright (C) 2012  Gasper Zejn
 
