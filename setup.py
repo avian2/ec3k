@@ -26,7 +26,7 @@ class TestCommand(Command):
 		result = unittest.TextTestRunner(verbosity=2).run(suite)
 
 setup(name='ec3k',
-	version='1.1.0',
+	version='1.1.1',
 	description='Use rtl-sdr to receive EnergyCount 3000 transmissions.',
 	license='GPLv3',
 	long_description=open("README.rst").read(),
