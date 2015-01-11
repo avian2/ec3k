@@ -410,7 +410,7 @@ class EnergyCount3K:
 		oversample = 10
 
 		# Radio receiver, initial downsampling
-		args = "nchan=1 rtl=%d,buffers=16" % (self.device,)
+		args = "rtl=%d,buffers=16" % (self.device,)
 		if self.osmosdr_args:
 			args += ",%s" % (self.osmosdr_args,)
 
