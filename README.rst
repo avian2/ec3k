@@ -51,10 +51,15 @@ received packets to standard output.
 Requirements
 ------------
 
-You need the GNU Radio framework (version 3.7 is known to work), rtl-sdr and
-the gr-osmosdr package.
+You need the GNU Radio framework, rtl-sdr and the gr-osmosdr package.
 
 http://sdr.osmocom.org/trac/wiki/rtl-sdr
+
+Combination of versions last known to work:
+
+ - GNU Radio release 3.7.5
+ - rtl-sdr git commit d447a2e9 (2014-08-26)
+ - gr-osmosdr git commit 48045b59 (2015-01-10)
 
 For baseband decoding a pure Python implementation is included in this
 package (``capture.py``) and should work out of the box.
