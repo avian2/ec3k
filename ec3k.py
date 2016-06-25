@@ -418,7 +418,7 @@ class EnergyCount3K:
 		osmosdr_source.set_sample_rate(samp_rate*oversample)
 		osmosdr_source.set_center_freq(self.freq, 0)
 		osmosdr_source.set_freq_corr(0, 0)
-		osmosdr_source.set_gain_mode(1, 0)
+		osmosdr_source.set_gain_mode(True, 0)
 		osmosdr_source.set_gain(0, 0)
 
 		taps = filter.firdes.low_pass(1, samp_rate*oversample, 90e3, 8e3,
