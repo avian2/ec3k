@@ -25,9 +25,9 @@ def main():
 	def callback(state):
 		if args.json:
 			print(json.dumps(dict(id=state.id,
-			                      is_on=state.device_on_flag,
+			                      device_on_flag=state.device_on_flag,
 			                      energy=state.energy,
-			                      power=state.power_current,
+			                      power_current=state.power_current,
 			                      power_max=state.power_max,
 			                      time_on=state.time_on,
 			                      time_total=state.time_total)))
