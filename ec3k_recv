@@ -2,6 +2,8 @@
 import ec3k
 import signal
 import time
+import argparse
+import json
 
 want_stop = False
 
@@ -14,16 +16,31 @@ def main():
 	signal.signal(signal.SIGTERM, handler)
 	signal.signal(signal.SIGINT, handler)
 
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-f', '--frequency', type = float, default = 868.402e6)
+	parser.add_argument('-j', '--json', action = 'store_true', default = False)
+	parser.add_argument('-q', '--quiet', action = 'store_true', default = False)
+	args = parser.parse_args()
+
 	def callback(state):
-		print state
+		if args.json:
+			print(json.dumps(dict(id=state.id,
+			                      device_on_flag=state.device_on_flag,
+			                      energy=state.energy,
+			                      power_current=state.power_current,
+			                      power_max=state.power_max,
+			                      time_on=state.time_on,
+			                      time_total=state.time_total)))
+		else:
+			print(state)
 
-	my_ec3k = ec3k.EnergyCount3K(callback=callback)
-
+	my_ec3k = ec3k.EnergyCount3K(callback=callback, freq=args.frequency)
 	my_ec3k.start()
 
 	while not want_stop:
 		time.sleep(2)
-		print "Noise level: %.1f dB" % (my_ec3k.noise_level,)
+		if not args.quiet:
+			print "Noise level: %.1f dB" % (my_ec3k.noise_level,)
 
 	my_ec3k.stop()
 
